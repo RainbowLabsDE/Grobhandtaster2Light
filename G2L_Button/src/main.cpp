@@ -112,6 +112,7 @@ void sleepUntilButtonIO() {
 
 void loop() {
     sleepUntilButtonIO();
+    // ToDo: regular wakeup for checkin message?
 
     payload.btnState = BTN_PRESSED;
     send(payload, 3);

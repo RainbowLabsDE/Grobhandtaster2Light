@@ -8,6 +8,11 @@
 #include "util.hpp"
 #include "effect.hpp"
 
+#include <FastLED.h>
+const int NUM_LEDS = 24;
+const int DATA_PIN = 22;
+CRGB leds[NUM_LEDS];
+
 const int PIN_DMX_TX = 16;
 const int PIN_DMX_RX = 17;
 const int PIN_DMX_EN = 21;
@@ -50,6 +55,8 @@ void handleButtonEvent(int buttonId, int buttonState) {
         Serial.printf("B %d: %s\n", buttonId, (buttonState == BTN_PRESSED) ? "Pres" : "Rel");
     }
 
+    fx.trigger(buttonId, buttonState);
+
     
     // Debug
     if (buttonState == BTN_PRESSED) {
@@ -81,8 +88,8 @@ void espNowRx(const esp_now_recv_info_t * esp_now_info, const uint8_t *data, int
 
         // Serial.printf("State: %d (%d), Time: %d (%d)\n", payload->btnState, buttonLastState[buttonId], millis(), buttonLastReceived[buttonId]);
         
-        // deduplicate multiple sent events
-        if (buttonLastState[buttonId] != payload->btnState || millis() - buttonLastReceived[buttonId] > 50) {
+        // deduplicate multiple sent events (except hold events)
+        if (buttonLastState[buttonId] != payload->btnState || millis() - buttonLastReceived[buttonId] > 50 || payload->btnState == BTN_HOLD) {
             // inject "pressed" event when first newly received event is "hold" (missed "pressed" transmission)
             if (buttonLastState[buttonId] == BTN_RELEASED && payload->btnState == BTN_HOLD) {
                 handleButtonEvent(buttonId, BTN_PRESSED);
@@ -105,9 +112,18 @@ void checkStuckButton() {
     }
 }
 
+CRGB *outputColor[] = {
+    new CRGB(),
+    new CRGB(),
+    new CRGB(),
+    new CRGB(),
+};
+
 void setup() {
     Serial.begin(921600);
     pinMode(2, OUTPUT);
+    FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
+    FastLED.setBrightness(255);
 
     // Serial.println(mac2str(buttonMacAddr[0].data()));
     // Serial.println(mac2str(buttonMacAddr[1].data()));
@@ -135,12 +151,17 @@ void setup() {
     // payload_t payload = {
     //     .preamble = G2L_PREAMBLE,
     // };
+
+    fx.init((uint8_t**)outputColor, 2);
 }
 
 void loop() {
     checkStuckButton();
-    fx.loop();    
+    fx.loop();
+    // CRGB toFill = applyGamma_video(outputColor, 2.2);
+    // leds[0] = toFill;
+    for (int i = 2; i < 10; i++) leds[i] = *outputColor[0];
+    for (int i = 14; i < 22; i++) leds[i] = *outputColor[1];
+    
+    FastLED.show();
 }
-
-
-
