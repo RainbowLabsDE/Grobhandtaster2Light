@@ -7,6 +7,8 @@
 
 static const int RAINBOW_PERIOD = 5000;         // ms, how long a full rainbow revolution should last
 static const int BASE_BRIGHTNESS = 32;
+static const int AFTER_EFFECT_PAUSE = 1000;     // ms, time
+static const int AFTER_EFFECT_FADE_UP = 3000;
 
 
 class Effect {
@@ -87,19 +89,19 @@ class FXRainbowFlash : public Effect {
     CRGB render(int idx) override {
         Effect::render(idx);
 
-        if (idx == _numPixels - 1) {
-            if (_alpha < BASE_BRIGHTNESS) {
-                Effect::stop(); // stop effect when background brightness got reached (avoids steppy fade look)
-            }
-        }
+        // if (idx == _numPixels - 1) {
+        //     if (_alpha < BASE_BRIGHTNESS) {
+        //         Effect::stop(); // stop effect when background brightness got reached (avoids steppy fade look)
+        //     }
+        // }
 
         uint32_t pixelOffset = idx * (RAINBOW_PERIOD / _numPixels);
-        CHSV hsv = CHSV(((millis() + pixelOffset) % RAINBOW_PERIOD) * 255 / RAINBOW_PERIOD, 255, 255);
+        CHSV hsv = CHSV(((millis() + pixelOffset) % RAINBOW_PERIOD) * 255 / RAINBOW_PERIOD, 240, 255);
         CRGB rgb;
         hsv2rgb_rainbow(hsv, rgb);
         return rgb;
     }
-    void stop() override {}
+    void stop() override {} // don't stop when button is released
 };
 
 // TODO: oddEven pallette jump
@@ -127,7 +129,20 @@ class EffectEngine {
                 if (effects[e]->running()) {
                     bgColorRGB = effects[e]->render(i);
                     bgColorRGB = bgColorRGB.scale8(effects[e]->alpha());
+                    _lastEffectRun = millis();
                     break;  // for now, don't do blending. First come, first serve
+                }
+                else if (e == effectsNum - 1) {
+                    // no effect active
+                    uint8_t idleBright = 0;
+                    if (millis() - _lastEffectRun > AFTER_EFFECT_PAUSE) {
+                        idleBright = 255;
+                        if (millis() - _lastEffectRun < AFTER_EFFECT_PAUSE + AFTER_EFFECT_FADE_UP) {
+                            uint32_t ms = millis() - (_lastEffectRun + AFTER_EFFECT_PAUSE);
+                            idleBright = ms * 255 / AFTER_EFFECT_FADE_UP;
+                        }
+                    }
+                    bgColorRGB = bgColorRGB.scale8(idleBright);
                 }
             }
 
@@ -161,9 +176,10 @@ class EffectEngine {
 
     protected:
     // background color fade
-    CHSV bgColorHSV = CHSV(0, 255, 255);
+    CHSV bgColorHSV = CHSV(0, 240, 255);    // sat=240 taken from FastLED fill_rainbow, idk
     CRGB bgColorRGB;
     int animOffset = 0; // in ms
+    uint32_t _lastEffectRun = 0;
 
     uint8_t **_rgbDestination = nullptr;    // memory location where to write new colors
     uint8_t _numPixels = 0;                 // number of pixels to consider in animations (max: 4)
