@@ -29,8 +29,8 @@ byte data[DMX_PACKET_SIZE];
 // };
 
 constexpr auto buttonMacAddr = std::to_array({
-    str2mac("3C:84:27:AD:7D:08"), 
     str2mac("FF:FF:FF:FF:FF:00"),
+    str2mac("3C:84:27:AD:7D:08"), 
     str2mac("12:34:56:78:9A:BC"), 
 });
 

@@ -5,20 +5,21 @@
 
 #include "common.h"
 
-typedef struct {
-    uint32_t lastTrigger;   // ms
-    uint8_t alpha;
-} effect_t;
+static const int RAINBOW_PERIOD = 5000;         // ms, how long a full rainbow revolution should last
+static const int BASE_BRIGHTNESS = 32;
+
 
 class Effect {
     public:
     Effect(uint32_t attack = 0, uint32_t sustain = 1000, uint32_t release = 0, bool hasHold = false) 
         : _attack(attack), _sustain(sustain), _release(release), _hasHold(hasHold) { }
 
-    void start() { _started = _held = millis(); };
-    void hold() { _held = millis(); }
-    void stop() { _started = 0; };
+    void init(uint8_t numPixels = 2) { _numPixels = numPixels; }
+    virtual void start() { _started = _held = millis(); };
+    virtual void hold() { _held = millis(); }
+    virtual void stop() { _started = 0; };
     bool running() { return !!_started; }
+    uint8_t alpha() { return _alpha; }
 
     virtual CRGB render(int idx) {
         if (idx == 0) {
@@ -54,6 +55,7 @@ class Effect {
     protected:
     uint32_t _attack, _sustain, _release;   // in ms
     bool _hasHold;
+    uint8_t _numPixels;
     uint32_t _started = 0, _held = 0;
     uint8_t _alpha = 0;
 };
@@ -70,7 +72,7 @@ class FXStrobe : public Effect {
         return CRGB::Black;
     }
 
-    void start() {
+    void start() override {
         Effect::start();
         _startInverted = (millis() / _strobeCycle) % 2;
     }
@@ -79,9 +81,33 @@ class FXStrobe : public Effect {
     bool _startInverted = false;
 };
 
+class FXRainbowFlash : public Effect {
+    public:
+    FXRainbowFlash() : Effect(0, 0, 350, true) { }
+    CRGB render(int idx) override {
+        Effect::render(idx);
+
+        if (idx == _numPixels - 1) {
+            if (_alpha < BASE_BRIGHTNESS) {
+                Effect::stop(); // stop effect when background brightness got reached (avoids steppy fade look)
+            }
+        }
+
+        uint32_t pixelOffset = idx * (RAINBOW_PERIOD / _numPixels);
+        CHSV hsv = CHSV(((millis() + pixelOffset) % RAINBOW_PERIOD) * 255 / RAINBOW_PERIOD, 255, 255);
+        CRGB rgb;
+        hsv2rgb_rainbow(hsv, rgb);
+        return rgb;
+    }
+    void stop() override {}
+};
+
+// TODO: oddEven pallette jump
+
 // button / effect association is done via order of this array
 Effect *effects[] = {
     new FXStrobe(),
+    new FXRainbowFlash(),
 };
 constexpr int effectsNum = sizeof(effects) / sizeof(effects[0]);
 
@@ -92,13 +118,15 @@ class EffectEngine {
         uint32_t now = millis();
 
         for (int i = 0; i < _numPixels; i++) {
-            uint32_t pixelOffset = i * (rainbowPeriod / _numPixels);
-            bgColorHSV.hue = ((now + animOffset + pixelOffset) % rainbowPeriod) * 255 / rainbowPeriod;
+            uint32_t pixelOffset = i * (RAINBOW_PERIOD / _numPixels);
+            bgColorHSV.hue = ((now + animOffset + pixelOffset) % RAINBOW_PERIOD) * 255 / RAINBOW_PERIOD;
             hsv2rgb_rainbow(bgColorHSV, bgColorRGB);
+            bgColorRGB = bgColorRGB.scale8(BASE_BRIGHTNESS);
 
             for (int e = 0; e < effectsNum; e++) {
                 if (effects[e]->running()) {
                     bgColorRGB = effects[e]->render(i);
+                    bgColorRGB = bgColorRGB.scale8(effects[e]->alpha());
                     break;  // for now, don't do blending. First come, first serve
                 }
             }
@@ -120,6 +148,9 @@ class EffectEngine {
     void init(uint8_t **rgbDsts, uint8_t numPixels) {
         _rgbDestination = rgbDsts;
         _numPixels = numPixels;
+        for (auto e : effects) {
+            e->init(_numPixels);
+        }
     }
 
     void setPixel(int idx, CRGB color) {
@@ -130,9 +161,7 @@ class EffectEngine {
 
     protected:
     // background color fade
-    const int rainbowPeriod = 5000;         // ms, how long a full rainbow revolution should last
-    const int baseBrighness = 64;
-    CHSV bgColorHSV = CHSV(0, 255, baseBrighness);
+    CHSV bgColorHSV = CHSV(0, 255, 255);
     CRGB bgColorRGB;
     int animOffset = 0; // in ms
 
