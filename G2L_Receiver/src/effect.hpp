@@ -10,6 +10,15 @@ static const int BASE_BRIGHTNESS = 32;
 static const int AFTER_EFFECT_PAUSE = 1000;     // ms, time
 static const int AFTER_EFFECT_FADE_UP = 3000;
 
+static const CRGB palette[][2] = {
+    { CRGB::Cyan,       CRGB::Orange    },
+    { CRGB::Magenta,    CRGB::Cyan      },
+    { CRGB::Orange,     CRGB::Red       },
+    { CRGB::Blue,       CRGB::LightGrey },
+    { CRGB::Yellow,     CRGB::Magenta   },
+};
+static const int paletteNum = sizeof(palette) / sizeof(palette[0]); 
+
 
 class Effect {
     public:
@@ -46,10 +55,13 @@ class Effect {
             _alpha = 255 - ((runtime - _attack - _sustain) * 255 / _release);
         }
         else {
-            _alpha = 0;
             // automatically disable effect when any ASR value is set
             if (_attack + _sustain + _release) {    
+                _alpha = 0;
                 _started = 0;
+            }
+            else {
+                _alpha = 255;
             }
         }
     }
@@ -86,6 +98,7 @@ class FXStrobe : public Effect {
 class FXRainbowFlash : public Effect {
     public:
     FXRainbowFlash() : Effect(0, 0, 350, true) { }
+    void stop() override {} // don't stop when button is released
     CRGB render(int idx) override {
         Effect::render(idx);
 
@@ -101,14 +114,57 @@ class FXRainbowFlash : public Effect {
         hsv2rgb_rainbow(hsv, rgb);
         return rgb;
     }
-    void stop() override {} // don't stop when button is released
 };
 
-// TODO: oddEven pallette jump
+class FXOddEven : public Effect {
+    public:
+    FXOddEven() : Effect(0, _fadeOutTime, 0, true) { }
+    void start() override {
+        Effect::start();
+        _startedLight[_oddEven] = _started;
+        _curPaletteId = (millis() / _paletteSwapTime) % paletteNum;
+    }
+    void hold() override {
+        Effect::hold();
+        _startedLight[_oddEven] = _held;
+    }
+    // don't stop when button is released
+    void stop() override { 
+        _oddEven = !_oddEven;   // switch between odd/even 
+    } 
+    CRGB render(int idx) override {
+        Effect::render(idx);
+
+        int lightId = idx % _numLights;
+
+        uint32_t runtime = millis() - _startedLight[lightId];
+        uint8_t bright = 0;
+        if (runtime < _fadeOutTime) {
+            bright = 255 - (runtime * 255 / _fadeOutTime);
+        }
+
+        // if (idx == _numPixels - 1) {
+        //     // check both timeouts, and set myself to disabled. Edit: nope, doesn't work as expected
+        //     if (millis() - _startedLight[0] > _fadeOutTime && millis() - _startedLight[1] > _fadeOutTime) {
+        //         _started = 0;
+        //     }
+        // }
+
+        return palette[_curPaletteId][lightId].scale8(bright);
+    }
+    
+    static const int _numLights = 2;
+    static const int _fadeOutTime = 400;
+    static const int _paletteSwapTime = 15000;
+    bool _oddEven = true;
+    uint32_t _startedLight[_numLights];
+    int _curPaletteId = 0;
+};
 
 // button / effect association is done via order of this array
 Effect *effects[] = {
     new FXStrobe(),
+    new FXOddEven(),
     new FXRainbowFlash(),
 };
 constexpr int effectsNum = sizeof(effects) / sizeof(effects[0]);
