@@ -60,6 +60,14 @@ void setup() {
     pinMode(8, OUTPUT);
     digitalWrite(8, HIGH);
 
+    // additional logic GNDs
+    pinMode(10, OUTPUT);
+    digitalWrite(10, LOW);
+    pinMode(3, OUTPUT);
+    digitalWrite(3, LOW);
+    pinMode(1, OUTPUT);
+    digitalWrite(1, LOW);
+
     print_wakeup_reason();
 
     WiFi.mode(WIFI_STA);
@@ -120,7 +128,7 @@ void loop() {
     while (!digitalRead(PIN_BUTTON)) {
         payload.btnState = BTN_HOLD;
         send(payload, 2);
-        delaySleep(SEND_INTERVAL_HOLD);
+        delaySleep(SEND_INTERVAL_HOLD); // TODO: need to randomize this a bit?
     }
 
     payload.btnState = BTN_RELEASED;

@@ -6,7 +6,7 @@
 #include "common.h"
 
 static const int RAINBOW_PERIOD = 5000;         // ms, how long a full rainbow revolution should last
-static const int BASE_BRIGHTNESS = 32;
+static const int BASE_BRIGHTNESS = 64;
 static const int AFTER_EFFECT_PAUSE = 1000;     // ms, time
 static const int AFTER_EFFECT_FADE_UP = 3000;
 
@@ -120,9 +120,15 @@ class FXOddEven : public Effect {
     public:
     FXOddEven() : Effect(0, _fadeOutTime, 0, true) { }
     void start() override {
+        if (millis() - max(_started, _held) > _fadeOutTime*4 && millis() - _lastPaletteSwap > _paletteSwapTime) {
+            _lastPaletteSwap = millis();
+            _curPaletteId++;
+            if (_curPaletteId >= paletteNum) 
+                _curPaletteId = 0;
+        }
         Effect::start();
         _startedLight[_oddEven] = _started;
-        _curPaletteId = (millis() / _paletteSwapTime) % paletteNum;
+        // _curPaletteId = (millis() / _paletteSwapTime) % paletteNum;
     }
     void hold() override {
         Effect::hold();
@@ -155,10 +161,11 @@ class FXOddEven : public Effect {
     
     static const int _numLights = 2;
     static const int _fadeOutTime = 400;
-    static const int _paletteSwapTime = 15000;
+    static const int _paletteSwapTime = 5000;
     bool _oddEven = true;
     uint32_t _startedLight[_numLights];
     int _curPaletteId = 0;
+    uint32_t _lastPaletteSwap = 0;
 };
 
 // button / effect association is done via order of this array
