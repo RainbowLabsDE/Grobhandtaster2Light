@@ -9,7 +9,7 @@
 const int PIN_BUTTON = 9;
 const int PIN_BAT_DIV = 4; // battery resistive divider
 
-const int SEND_INTERVAL_HOLD = 20000;   // us when to send the hold event
+const int SEND_INTERVAL_HOLD = 25000;   // us when to send the hold event
 
 payload_t payload = {
     .preamble = G2L_PREAMBLE,
@@ -61,12 +61,12 @@ void setup() {
     digitalWrite(8, HIGH);
 
     // additional logic GNDs
-    pinMode(10, OUTPUT);
-    digitalWrite(10, LOW);
+    // pinMode(10, OUTPUT);
+    // digitalWrite(10, LOW);
     pinMode(3, OUTPUT);
     digitalWrite(3, LOW);
-    pinMode(1, OUTPUT);
-    digitalWrite(1, LOW);
+    // pinMode(1, OUTPUT);
+    // digitalWrite(1, LOW);
 
     print_wakeup_reason();
 
@@ -102,7 +102,7 @@ esp_err_t send(payload_t payload, int repeats = 1, bool delayAfter = true) {
     // Serial.print(micros());
 
     if (delayAfter) {
-        delayMicroseconds(5000);   // needed because of random high power draw (30mA and falling) when entering sleep too early?
+        delayMicroseconds(10000);   // needed because of random high power draw (30mA and falling) when entering sleep too early?
     }
     return result;
 }

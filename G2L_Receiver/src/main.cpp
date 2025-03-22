@@ -33,14 +33,10 @@ byte dmxData[DMX_PACKET_SIZE];
 // };
 
 constexpr auto buttonMacAddr = std::to_array({
-    // str2mac("FF:FF:FF:FF:FF:00"),
-    
-    str2mac("3C:84:27:AD:7D:08"), // first
-    str2mac("3C:84:27:AD:F1:0C"), 
-    str2mac("E8:06:90:66:85:1C"),
+    str2mac("3C:84:27:AD:7D:08"), // Strobe
+    str2mac("3C:84:27:AD:F1:0C"), // OddEven
+    str2mac("E8:06:90:66:85:1C"), // Blink
     str2mac("3C:84:27:AD:E3:68"), 
-
-    // str2mac("12:34:56:78:9A:BC"), 
 });
 constexpr int buttonNum = buttonMacAddr.size();
 
@@ -103,20 +99,18 @@ void espNowRx(const esp_now_recv_info_t * esp_now_info, const uint8_t *data, int
     uint8_t * src_mac = esp_now_info->src_addr;
     payload_t *payload = (payload_t*)data;
 
-    Serial.printf("(%8d) RX: %s %4ddBm. (%2d): ", 
+    Serial.printf("(%8d) %s %4ddBm", 
         millis(), 
         mac2str(src_mac), 
-        esp_now_info->rx_ctrl->rssi,
-        data_len);
-    for (int i = 0; i < data_len; i++) {
-        Serial.printf("%02X ", data[i]);
-    }
-    Serial.println();
+        esp_now_info->rx_ctrl->rssi);
 
     if (data_len == sizeof(payload_t) && payload->preamble == G2L_PREAMBLE) {
         // TODO: trigger effect based on sender MAC
         int buttonId = findMacIndex(src_mac);
+        Serial.printf(" (%d):", buttonId);
         if (buttonId == -1) return;
+
+        Serial.printf(" %d - %dmV", payload->btnState, payload->batVolt * 4);    //*4? shouldn't it be *2?
 
         // Serial.printf("State: %d (%d), Time: %d (%d)\n", payload->btnState, buttonLastState[buttonId], millis(), buttonLastReceived[buttonId]);
         
@@ -132,6 +126,12 @@ void espNowRx(const esp_now_recv_info_t * esp_now_info, const uint8_t *data, int
         buttonLastReceived[buttonId] = millis();
         buttonLastState[buttonId] = payload->btnState;
     }
+    else {
+        for (int i = 0; i < data_len; i++) {
+            Serial.printf("%02X ", data[i]);
+        }
+    }
+    Serial.println();
 }
 
 // if only the pressed/held, but no released events got received, release the button after a timeout
@@ -211,8 +211,8 @@ void loop() {
     fx.loop();
     // CRGB toFill = applyGamma_video(outputColor, 2.2);
     // leds[0] = toFill;
-    for (int i = 2; i < 10; i++) leds[i] = *outputColor[0];
-    for (int i = 14; i < 22; i++) leds[i] = *outputColor[1];
+    for (int i = 2; i < 3; i++) leds[i] = *outputColor[0];
+    for (int i = 14; i < 15; i++) leds[i] = *outputColor[1];
     // leds[0] = *outputColor[0];
     FastLED.show();
 

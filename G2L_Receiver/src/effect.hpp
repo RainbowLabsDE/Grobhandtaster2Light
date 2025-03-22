@@ -80,7 +80,7 @@ class FXStrobe : public Effect {
     CRGB render(int idx) override {
         Effect::render(idx);
         if (_alpha != 0) {
-            bool on = ((millis() / _strobeCycle) % 2) ^ _startInverted;
+            bool on = (((millis() / _strobeCycle) - _startCycle) % 3 == 0);
             return on ? CRGB::White : CRGB::Black;
         }
         return CRGB::Black;
@@ -88,16 +88,18 @@ class FXStrobe : public Effect {
 
     void start() override {
         Effect::start();
-        _startInverted = (millis() / _strobeCycle) % 2;
+        // _startInverted = (millis() / _strobeCycle) % 2;
+        _startCycle = (millis() / _strobeCycle) % 3;
     }
 
-    uint32_t _strobeCycle = 25;  // ms, length of off/on interval
-    bool _startInverted = false;
+    uint32_t _strobeCycle = 20;  // ms, length of on interval
+    // bool _startInverted = true;
+    int _startCycle = 0;
 };
 
 class FXRainbowFlash : public Effect {
     public:
-    FXRainbowFlash() : Effect(0, 0, 350, true) { }
+    FXRainbowFlash() : Effect(0, 50, 350, true) { }
     void stop() override {} // don't stop when button is released
     CRGB render(int idx) override {
         Effect::render(idx);
@@ -145,8 +147,11 @@ class FXOddEven : public Effect {
 
         uint32_t runtime = millis() - _startedLight[lightId];
         uint8_t bright = 0;
-        if (runtime < _fadeOutTime) {
-            bright = 255 - (runtime * 255 / _fadeOutTime);
+        if (runtime < _holdTime) {
+            bright = 255;
+        }
+        else if (runtime < _fadeOutTime + _holdTime) {
+            bright = 255 - ((runtime-_holdTime) * 255 / _fadeOutTime);
         }
 
         // if (idx == _numPixels - 1) {
@@ -161,6 +166,7 @@ class FXOddEven : public Effect {
     
     static const int _numLights = 2;
     static const int _fadeOutTime = 400;
+    static const int _holdTime = 50;
     static const int _paletteSwapTime = 5000;
     bool _oddEven = true;
     uint32_t _startedLight[_numLights];
