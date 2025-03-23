@@ -118,9 +118,20 @@ void sleepUntilButtonIO() {
     // digitalWrite(8, LOW);
 }
 
+uint32_t lastBlink = 0;
+
 void loop() {
-    sleepUntilButtonIO();
+    // sleepUntilButtonIO();
     // ToDo: regular wakeup for checkin message?
+
+    if (millis() - lastBlink > 250) {
+        lastBlink = millis();
+        digitalWrite(8, !digitalRead(8));
+    }
+
+    if (digitalRead(PIN_BUTTON) == HIGH) {
+        return;
+    }
 
     payload.btnState = BTN_PRESSED;
     send(payload, 3);
@@ -128,7 +139,8 @@ void loop() {
     while (!digitalRead(PIN_BUTTON)) {
         payload.btnState = BTN_HOLD;
         send(payload, 2);
-        delaySleep(SEND_INTERVAL_HOLD); // TODO: need to randomize this a bit?
+        // delaySleep(SEND_INTERVAL_HOLD); // TODO: need to randomize this a bit?
+        delayMicroseconds(SEND_INTERVAL_HOLD);
     }
 
     payload.btnState = BTN_RELEASED;

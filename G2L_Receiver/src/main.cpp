@@ -33,10 +33,10 @@ byte dmxData[DMX_PACKET_SIZE];
 // };
 
 constexpr auto buttonMacAddr = std::to_array({
-    str2mac("3C:84:27:AD:7D:08"), // Strobe
+    str2mac("3C:84:27:AD:E3:68"), // Spare (now strobe)
     str2mac("3C:84:27:AD:F1:0C"), // OddEven
     str2mac("E8:06:90:66:85:1C"), // Blink
-    str2mac("3C:84:27:AD:E3:68"), 
+    str2mac("3C:84:27:AD:7D:08"), // Strobe
 });
 constexpr int buttonNum = buttonMacAddr.size();
 
